@@ -118,6 +118,7 @@ curl -u auditor:123456 -X POST "$BASE/api/auditor/claims/1/review" -H 'Content-T
 
 ## 合作社调度视图（不是单个订单）
 
+- `GET /api/coop/dispatch/pool`：调度池。**归属隔离规则**：未分派（SUBMITTED）预约单为全县共享池，所有合作社可见并竞价派机；订单派给某社后（DISPATCHED）仅该社在池中可见，其他合作社（如 `coop2`）看不到合作社 1 的订单，且对已派单再次生成建议/派机会被拒绝（4xx）。非合作社角色访问返回 403。
 - `GET /api/coop/routes?date=yyyy-MM-dd`：按驾驶员串接当日跨村作业链（驻地→村 A→村 B→回社），逐段道路里程、到地时间。
 - `GET /api/coop/utilization`：机具当日工时/日上限利用率、按小时台账的到保预警。
 - `GET /api/coop/fatigue`：驾驶员当日累计工时/疲劳阈值，≥85% 高风险、≥100% 强制休息。
@@ -143,6 +144,13 @@ curl -u auditor:123456 -X POST "$BASE/api/auditor/claims/1/review" -H 'Content-T
 ## 验证方式（宿主 docker compose up）
 
 本工程的验收标准是“compose up 健康 + 关键业务流可通过接口走通”，不依赖在本机安装 JDK/Maven：构建所需工具链全部由多阶段 Dockerfile（`maven:3.9-eclipse-temurin-21` → `eclipse-temurin:21-jre`）提供。启动后请按上文“端到端业务流”依次调用，或直接访问 `GET /` 确认服务状态。
+
+接口级自动化验收（仅依赖 Python 标准库，服务 `compose up` 后运行）：
+
+```bash
+# 合作社归属隔离：非合作社角色 403；coop2 调度池不含合作社1已派订单
+BASE=http://host.docker.internal:3018 python3 tests/api_pool_isolation_test.py
+```
 
 ## 目录结构
 

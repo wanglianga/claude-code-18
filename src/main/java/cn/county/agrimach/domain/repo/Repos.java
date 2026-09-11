@@ -34,6 +34,7 @@ public interface Repos {
         List<WorkOrder> findByCoopIdOrderByCreatedAtDesc(Long coopId);
         List<WorkOrder> findByDriverId(Long driverId);
         List<WorkOrder> findByStatusIn(List<E.OrderStatus> statuses);
+        List<WorkOrder> findByCoopIdAndStatus(Long coopId, E.OrderStatus status);
         List<WorkOrder> findTop50ByOrderByCreatedAtDesc();
 
         /** 某驾驶员在某日已有作业时间（疲劳/排班），按期望开始时间落在区间 [dayStart, dayEnd) 统计 */

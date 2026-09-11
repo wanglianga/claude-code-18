@@ -88,6 +88,10 @@ public class OrderService {
     @Transactional
     public List<DispatchSuggestion> generateSuggestions(Long orderId) {
         WorkOrder o = mustOrder(orderId);
+        // 只有未分派订单在共享调度池中开放给各社竞价派机；已派给他社的订单不可再触达
+        if (o.getStatus() != E.OrderStatus.SUBMITTED) {
+            throw bad("订单当前状态为「" + o.getStatus().label + "」，不能再生成派机建议");
+        }
         suggestionRepo.deleteByWorkOrderId(orderId);
         suggestionRepo.flush();
 
@@ -507,10 +511,25 @@ public class OrderService {
                 .orElse(List.of());
     }
 
-    /** 待派机池（合作社视图） */
+    /**
+     * 调度池（合作社视图），按合作社归属过滤：
+     * - 未分派（SUBMITTED）预约单：全县共享调度池，所有合作社均可查看并派机；
+     * - 已派机（DISPATCHED）订单：仅订单归属合作社可见（本社在途跟踪），
+     *   其他合作社看不到他社订单。
+     */
     @Transactional
     public List<WorkOrder> listPendingPool() {
-        return orderRepo.findByStatusIn(List.of(E.OrderStatus.SUBMITTED, E.OrderStatus.DISPATCHED));
+        UserAccount u = currentUser.get();
+        if (u.getRole() != E.Role.COOP || u.getCoop() == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "仅合作社账号可查看调度池");
+        }
+        Long coopId = u.getCoop().getId();
+        List<WorkOrder> pool = new ArrayList<>(
+                orderRepo.findByStatusIn(List.of(E.OrderStatus.SUBMITTED)));
+        pool.addAll(orderRepo.findByCoopIdAndStatus(coopId, E.OrderStatus.DISPATCHED));
+        pool.sort(Comparator.comparing(WorkOrder::getCreatedAt,
+                Comparator.nullsLast(Comparator.naturalOrder())).reversed());
+        return pool;
     }
 
     public WorkOrder driverOrder(Long orderId) {

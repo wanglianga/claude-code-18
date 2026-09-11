@@ -12,15 +12,26 @@ target/
 build/
 dist/
 coverage/
+logs/
 .cache/
+.pytest_cache/
+__pycache__/
 *.log
 *.tmp
 *.db
+*.sqlite
+*.sqlite3
+*.class
+*.jar
 
 # Local QA/agent state
 .playwright-cli/
 *_traces/
+*_traces_*/
+*.jsonl
+session*
 memory/
+memory*
 memories/
 skill/
 skills/
