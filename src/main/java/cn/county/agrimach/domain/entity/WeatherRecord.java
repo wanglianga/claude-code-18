@@ -36,6 +36,13 @@ public class WeatherRecord {
     @Column(nullable = false)
     private Double rainfallMm = 0.0;
 
+    /** 0-20cm 土壤相对湿度（%），与机具进地阈值共同决定能否进机 */
+    private Double soilMoisturePct;
+
+    /** 该日该村是否因湿度/降水不具备机械进地条件（值班员/气象站录入） */
+    @Column(nullable = false)
+    private boolean machineAccessBlocked = false;
+
     @Column(length = 200)
     private String advisory;
 }

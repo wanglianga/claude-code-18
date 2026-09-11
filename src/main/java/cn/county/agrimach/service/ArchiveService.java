@@ -35,6 +35,7 @@ public class ArchiveService {
     private final Repos.DisputeRepo disputeRepo;
     private final Repos.AreaReviewRepo areaReviewRepo;
     private final Repos.AttachmentRepo attachmentRepo;
+    private final Repos.ReroutePlanRepo reroutePlanRepo;
     private final CurrentUser currentUser;
 
     public Map<String, Object> dossier(Long orderId) {
@@ -64,6 +65,7 @@ public class ArchiveService {
         d.put("disputes", disputeRepo.findByWorkOrderId(orderId));
         d.put("areaReviews", areaReviewRepo.findByWorkOrderIdOrderByRaisedAtDesc(orderId));
         d.put("subsidyAttachments", attachmentRepo.findByWorkOrderId(orderId));
+        d.put("reroutePlans", reroutePlanRepo.findByBlockedOrderIdOrderByCreatedAtDesc(orderId));
         d.put("evidenceChain", evidenceChain(orderId));
         return d;
     }

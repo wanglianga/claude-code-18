@@ -68,19 +68,19 @@ public class DataSeeder {
 
         // ---------------- 机具 ----------------
         machine(c1, "M-HV-01", "履带式联合收割机1号", E.MachineType.HARVESTER,
-                "HARVESTING,STRAW_TREATMENT", 8.0, 22.0, 20.0, 0.0, 200.0);
+                "HARVESTING,STRAW_TREATMENT", 8.0, 22.0, 20.0, 0.0, 200.0, 90.0);
         machine(c1, "M-TR-01", "大马力拖拉机1号", E.MachineType.TRACTOR,
-                "PLOWING,ROTOTILLING", 8.0, 18.0, 25.0, 196.0, 200.0);
+                "PLOWING,ROTOTILLING", 8.0, 18.0, 25.0, 196.0, 200.0, 75.0);
         machine(c1, "M-RT-01", "高速水稻插秧机1号", E.MachineType.RICE_TRANSPLANTER,
-                "TRANSPLANTING", 6.0, 12.0, 25.0, 40.0, 200.0);
+                "TRANSPLANTING", 6.0, 12.0, 25.0, 40.0, 200.0, 78.0);
         machine(c1, "M-DR-01", "植保无人机1号", E.MachineType.DRONE,
-                "PLANT_PROTECTION", 40.0, 3.0, 35.0, 12.0, 150.0);
+                "PLANT_PROTECTION", 40.0, 3.0, 35.0, 12.0, 150.0, 100.0);
         machine(c1, "M-BL-01", "秸秆打捆机1号", E.MachineType.BALER,
-                "STRAW_TREATMENT", 10.0, 15.0, 20.0, 60.0, 200.0);
+                "STRAW_TREATMENT", 10.0, 15.0, 20.0, 60.0, 200.0, 80.0);
         machine(c2, "M-HV-02", "联合收割机2号", E.MachineType.HARVESTER,
-                "HARVESTING,STRAW_TREATMENT", 7.5, 21.0, 20.0, 30.0, 200.0);
+                "HARVESTING,STRAW_TREATMENT", 7.5, 21.0, 20.0, 30.0, 200.0, 82.0);
         machine(c2, "M-TR-02", "拖拉机2号", E.MachineType.TRACTOR,
-                "PLOWING,ROTOTILLING", 7.5, 17.0, 25.0, 55.0, 200.0);
+                "PLOWING,ROTOTILLING", 7.5, 17.0, 25.0, 55.0, 200.0, 75.0);
 
         // ---------------- 油补规则（每种作业 × 五类分段） ----------------
         double[] productiveRate = {12, 12, 15, 18, 5, 10};
@@ -93,14 +93,14 @@ public class DataSeeder {
             rule(op, E.SegmentType.MACHINE_FAULT, "HOUR", 20.0, 0.5, true, "机具故障停机补贴下浮50%");
         }
 
-        // ---------------- 天气（演示派机遇雨顺延） ----------------
+        // ---------------- 天气（演示派机遇雨顺延、雨后窗口重排） ----------------
         LocalDate today = LocalDate.now();
-        weather("双河村", today, E.WeatherType.SUNNY, 0.0, "适宜机械进地");
-        weather("南山村", today, E.WeatherType.RAIN, 18.0, "土壤过湿，轮式机械不宜进地");
-        weather("南山村", today.plusDays(1), E.WeatherType.LIGHT_RAIN, 6.0, "仍需晾晒");
-        weather("南山村", today.plusDays(2), E.WeatherType.CLOUDY, 0.0, "可进地");
-        weather("河东镇", today, E.WeatherType.SUNNY, 0.0, "");
-        weather("河西村", today, E.WeatherType.CLOUDY, 0.0, "");
+        weather("双河村", today, E.WeatherType.SUNNY, 0.0, 55.0, false, "适宜机械进地");
+        weather("南山村", today, E.WeatherType.RAIN, 18.0, 92.0, true, "土壤过湿，轮式机械不宜进地");
+        weather("南山村", today.plusDays(1), E.WeatherType.LIGHT_RAIN, 6.0, 87.0, true, "仍需晾晒");
+        weather("南山村", today.plusDays(2), E.WeatherType.CLOUDY, 0.0, 78.0, false, "可进地");
+        weather("河东镇", today, E.WeatherType.SUNNY, 0.0, 52.0, false, "");
+        weather("河西村", today, E.WeatherType.CLOUDY, 0.0, 60.0, false, "");
 
         // ---------------- 示例预约单 ----------------
         WorkOrder demo1 = new WorkOrder();
@@ -160,7 +160,8 @@ public class DataSeeder {
     }
 
     private void machine(Cooperative coop, String code, String name, E.MachineType type, String ops,
-                         double rate, double fuel, double speed, double hourMeter, double interval) {
+                         double rate, double fuel, double speed, double hourMeter, double interval,
+                         double maxSoilMoisture) {
         Machine m = new Machine();
         m.setCoop(coop);
         m.setCode(code);
@@ -173,6 +174,7 @@ public class DataSeeder {
         m.setHourMeter(hourMeter);
         m.setLastMaintenanceHour(Math.max(0, hourMeter - interval * 0.3));
         m.setMaintenanceIntervalHours(interval);
+        m.setMaxSoilMoisturePct(maxSoilMoisture);
         machineRepo.save(m);
     }
 
@@ -189,12 +191,15 @@ public class DataSeeder {
         ruleRepo.save(r);
     }
 
-    private void weather(String village, LocalDate date, E.WeatherType w, double rain, String advisory) {
+    private void weather(String village, LocalDate date, E.WeatherType w, double rain,
+                         double soilMoisture, boolean blocked, String advisory) {
         WeatherRecord wr = new WeatherRecord();
         wr.setVillage(village);
         wr.setDate(date.toString());
         wr.setWeather(w);
         wr.setRainfallMm(rain);
+        wr.setSoilMoisturePct(soilMoisture);
+        wr.setMachineAccessBlocked(blocked);
         wr.setAdvisory(advisory);
         weatherRepo.save(wr);
     }

@@ -28,6 +28,7 @@ public class CoopController {
     private final SubsidyService subsidyService;
     private final cn.county.agrimach.service.CurrentUser currentUser;
     private final cn.county.agrimach.service.AreaReviewService areaReviewService;
+    private final cn.county.agrimach.service.RerouteService rerouteService;
 
     /** 待派机池 */
     @GetMapping("/dispatch/pool")
@@ -113,6 +114,57 @@ public class CoopController {
     @GetMapping("/orders/{orderId}/area-reviews")
     public Object listReviews(@PathVariable Long orderId) {
         return areaReviewService.listForOrder(orderId);
+    }
+
+    // ---------- 雨后作业窗口重排 ----------
+
+    /** 录入/更新某村某日天气与土壤墒情（决定机具能否进地） */
+    @PostMapping("/reroute/weather")
+    public Object upsertWeather(@RequestBody cn.county.agrimach.service.RerouteService.WeatherUpsertReq req) {
+        return rerouteService.upsertWeather(req);
+    }
+
+    /** 扫描本社当日因雨后土壤湿度无法进机的作业单 */
+    @GetMapping("/reroute/blocked")
+    public Object blocked(@RequestParam(required = false) String date) {
+        java.time.LocalDate d = date != null ? java.time.LocalDate.parse(date) : java.time.LocalDate.now();
+        return rerouteService.scanBlocked(currentCoopId(), d);
+    }
+
+    /** 生成重排计划（按湿度/成熟紧迫度/农机位置/其他村预约排序） */
+    @PostMapping("/orders/{id}/reroute/plan")
+    public Object buildReroute(@PathVariable Long id) {
+        return rerouteService.buildPlan(id);
+    }
+
+    /** 合作社决策：DIVERT 先转去可作业地块 / WAIT 原地等待 */
+    @PostMapping("/reroute/{planId}/decide")
+    public Object decideReroute(@PathVariable Long planId,
+                                @RequestBody cn.county.agrimach.service.RerouteService.DecideReq req) {
+        return rerouteService.decide(planId, req);
+    }
+
+    @GetMapping("/reroute/plans")
+    public Object reroutePlans() {
+        return rerouteService.listPlans(currentCoopId());
+    }
+
+    /** 处理农户“要求换机具”：自动选择目标日可进地的最近同类机具 */
+    @PostMapping("/reroute/notifications/{notificationId}/change-machine")
+    public Object changeMachine(@PathVariable Long notificationId) {
+        return rerouteService.handleMachineChange(notificationId);
+    }
+
+    /** 确认农户取消作业 */
+    @PostMapping("/reroute/notifications/{notificationId}/cancel")
+    public Object cancelByFarmer(@PathVariable Long notificationId) {
+        return rerouteService.handleCancel(notificationId);
+    }
+
+    /** 合作社调度评分（重排通知响应+换机+取消+有效作业比例） */
+    @GetMapping("/reroute/score")
+    public Object rerouteScore() {
+        return rerouteService.dispatchScore(currentCoopId());
     }
 
     private Long currentCoopId() {

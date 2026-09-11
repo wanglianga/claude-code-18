@@ -169,4 +169,8 @@ public class WorkOrder {
     private boolean areaReviewAdjusted = false;
     /** 经面积争议复核核定的收费面积（为空则以预约/现场实测为准） */
     private Double reviewConfirmedAreaMu;
+
+    /** 作物距最佳作业窗口剩余天数（成熟紧迫度，越小越优先重排） */
+    @Column(nullable = false)
+    private Integer matureDaysLeft = 7;
 }

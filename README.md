@@ -116,6 +116,22 @@ curl -u auditor:123456 -X POST "$BASE/api/auditor/claims/1/review" -H 'Content-T
 
 `空驶 EMPTY_HAUL`（元/km，含跨村赴地与异常折返/换机）、`有效作业 PRODUCTIVE`（元/亩）、`等待天气 WEATHER_WAIT`（元/小时）、`返工 REWORK`（元/亩，非农户原因）、`机具故障 MACHINE_FAULT`（元/小时，系数 0.5 下浮）。规则在 `subvention_rule` 表按“作业类型 × 分段类型”配置，每次核算结果按费用版本写入 `work_segment`。
 
+## 雨后作业窗口重排（土壤湿度+跨村转场+通知评分）
+
+某村雨后土壤湿度超过机具进地阈值（机具表 `maxSoilMoisturePct`：履带收割机90%、轮式拖拉机75%、无人机100%）无法进机时：
+
+1. `GET /api/coop/reroute/blocked?date=yyyy-MM-dd` 扫描受阻作业单（含湿度/降水/阈值证据）；
+2. `POST /api/coop/orders/{id}/reroute/plan` 按**土壤湿度、作物成熟紧迫度（到期天数）、农机当前位置（已出发=受阻地块、未出发=合作社）、其他村可作业预约**重新排序，生成候选清单与系统推荐：
+   - `DIVERT 先转去可作业地块`：给出绕行空驶里程/分钟/油耗（计入空驶段油耗与油补、**不向农户加收**），转场单即时派给同一机具组，受阻单顺延至最早可进地日；
+   - `WAIT 原地等待晾墒`：按当日等待工时生成“等待天气”分段补贴，窗口顺延；
+3. 决策执行后自动向受影响农户与转场受益农户发送通知，农户可回复：**接受延期 / 要求换机具 / 取消作业**（`GET /api/farmer/notifications`、`POST /api/farmer/notifications/{id}/respond`）；
+   - 要求换机具：合作社 `POST /api/coop/reroute/notifications/{id}/change-machine`，系统跨社选择目标日湿度可进地的最近同类机具（如履带式 M-HV-01 阈值90% 改为高通过性机具）；
+   - 取消作业：`.../cancel`，订单与重排计划置为取消；
+4. `GET /api/coop/reroute/score` 输出**合作社调度评分**：基础100 + 通知满意度（接受延期-2、换机-10、取消-15、等待-2/天、转场受益+2）- 换机×6 - 取消×10 - 未回复通知×1.5 + 申报有效作业比例溢价；
+5. 补贴申报新增 **有效作业比例 `productiveRatioPct`**（有效作业分钟 / 全部五类分段分钟），转场空驶与等待会拉低该比例并进入评分。
+
+天气/墒情由 `POST /api/coop/reroute/weather` 录入（村+日期唯一：天气、降水、土壤湿度、是否禁入）。重排计划与通知均进入统一作业档案 `reroutePlans`。
+
 ## 地块面积争议复核（收费面积争议闭环）
 
 农户认为收费面积过高时可发起复核，服务自动归集**五类证据**：预约面积、驾驶轨迹核算面积、卫星地块边界（提交边界坐标自动核算面积）、驾驶员现场备注、农户验收照片。由**村干部裁决**：
@@ -174,6 +190,8 @@ curl -u auditor:123456 -X POST "$BASE/api/auditor/claims/1/review" -H 'Content-T
 BASE=http://host.docker.internal:3018 python3 tests/api_pool_isolation_test.py
 # 面积争议复核：超算退减同步（发票/草稿/审核附件）、少报诚信风险与预确认拦截、已申报驳回重报
 BASE=http://host.docker.internal:3018 python3 tests/api_area_review_test.py
+# 雨后重排：受阻扫描、DIVERT 转场/WAIT 等待、农户接受延期/换机/取消、调度评分、申报有效作业比例
+BASE=http://host.docker.internal:3018 python3 tests/api_reroute_test.py
 ```
 
 ## 目录结构

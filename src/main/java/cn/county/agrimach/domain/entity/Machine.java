@@ -60,6 +60,10 @@ public class Machine {
     @Column(nullable = false)
     private Double roadSpeedKmh = 25.0;
 
+    /** 可进地的最高土壤相对湿度（%）：履带式高、轮式低，雨后窗口重排依据 */
+    @Column(nullable = false)
+    private Double maxSoilMoisturePct = 82.0;
+
     /** 平均纯作业效率 亩/小时 */
     @Column(nullable = false)
     private Double workRateMuPerHour = 8.0;

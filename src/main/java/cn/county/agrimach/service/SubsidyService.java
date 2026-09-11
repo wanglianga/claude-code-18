@@ -87,7 +87,22 @@ public class SubsidyService {
 
         summarize(claim);
         claim.setOrderCount((int) claim.getItems().stream().map(i -> i.getWorkOrder().getId()).distinct().count());
+        claim.setProductiveRatioPct(productiveRatio(orders));
         return claimRepo.save(claim);
+    }
+
+    /** 有效作业时间占比（%）= 有效作业 /（作业+空驶+等待天气+返工+故障），雨后转场/等待会拉低该比例 */
+    private Double productiveRatio(List<WorkOrder> orders) {
+        double productive = 0, total = 0;
+        for (WorkOrder o : orders) {
+            for (WorkSegment s : segmentRepo.findByWorkOrderIdAndCalcVersion(o.getId(), o.getCalcVersion())) {
+                int min = s.getDurationMinutes() == null ? 0 : s.getDurationMinutes();
+                total += min;
+                if (s.getSegmentType() == E.SegmentType.PRODUCTIVE) productive += min;
+            }
+        }
+        if (total <= 0) return 0.0;
+        return Math.round(productive * 1000.0 / total) / 10.0;
     }
 
     /**
@@ -134,6 +149,8 @@ public class SubsidyService {
         summarize(claim);
         claim.setOrderCount((int) claim.getItems().stream()
                 .map(i -> i.getWorkOrder().getId()).distinct().count());
+        claim.setProductiveRatioPct(productiveRatio(claim.getItems().stream()
+                .map(SubsidyClaimItem::getWorkOrder).distinct().toList()));
         claimRepo.save(claim);
     }
 

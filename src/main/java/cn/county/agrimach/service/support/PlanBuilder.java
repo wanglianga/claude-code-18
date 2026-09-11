@@ -140,6 +140,11 @@ public class PlanBuilder {
         return workMinutes(nz(o.getBookedAreaMu()), machine, o.getMudLevel());
     }
 
+    /** 按指定面积估算纯作业时间（重排顺延窗口使用） */
+    public int workMinutesForArea(double area, WorkOrder o, Machine machine) {
+        return workMinutes(area, machine, o.getMudLevel());
+    }
+
     public int minutesForHaul(double km, Machine machine) {
         if (machine == null) return (int) Math.round(km / 25.0 * 60);
         return (int) Math.round(km / nz(machine.getRoadSpeedKmh(), 25.0) * 60);

@@ -55,7 +55,8 @@ public class OrderService {
                             LocalDateTime expectedStart,
                             @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
                             LocalDateTime expectedEnd,
-                            boolean strawRequested, String remark, String boundaryConfirmRef) {}
+                            boolean strawRequested, String remark, String boundaryConfirmRef,
+                            Integer matureDaysLeft) {}
 
     @Transactional
     public WorkOrder submit(SubmitReq r) {
@@ -91,6 +92,7 @@ public class OrderService {
         o.setExpectedStart(r.expectedStart());
         o.setExpectedEnd(r.expectedEnd());
         o.setStrawRequested(r.strawRequested());
+        o.setMatureDaysLeft(r.matureDaysLeft() != null ? r.matureDaysLeft() : 7);
         o.setRemark(r.remark());
         // 已通过边界预确认的预约，凭据落单
         if (farmer.isIntegrityRiskFlag() && r.boundaryConfirmRef() != null) {
@@ -569,6 +571,13 @@ public class OrderService {
 
     public Long currentUserId() {
         return currentUser.get().getId();
+    }
+
+    /** 当前有效收费面积下的纯作业分钟数（雨后重排顺延窗口时复用） */
+    public int estimatedWorkMinutes(WorkOrder o) {
+        double area = o.getReviewConfirmedAreaMu() != null ? o.getReviewConfirmedAreaMu()
+                : o.getActualAreaMu() != null ? o.getActualAreaMu() : o.getBookedAreaMu();
+        return planBuilder.workMinutesForArea(area, o, o.getMachine());
     }
 
     /** 当前农户档案（含面积诚信风险与边界预确认状态） */

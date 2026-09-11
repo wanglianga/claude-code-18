@@ -113,6 +113,19 @@ public interface Repos {
         boolean existsByWorkOrderIdAndStatus(Long orderId, E.AreaReviewStatus status);
     }
 
+    interface ReroutePlanRepo extends JpaRepository<ReroutePlan, Long> {
+        List<ReroutePlan> findByBlockedOrderIdOrderByCreatedAtDesc(Long orderId);
+        List<ReroutePlan> findByCoopIdOrderByCreatedAtDesc(Long coopId);
+        List<ReroutePlan> findByCoopIdAndStatus(Long coopId, E.ReroutePlanStatus status);
+    }
+
+    interface RerouteNotificationRepo extends JpaRepository<RerouteFarmerNotification, Long> {
+        List<RerouteFarmerNotification> findByFarmerIdOrderBySentAtDesc(Long farmerId);
+        List<RerouteFarmerNotification> findByPlanCoopIdOrderBySentAtDesc(Long coopId);
+        long countByPlanCoopId(Long coopId);
+        long countByPlanCoopIdAndResponse(Long coopId, E.FarmerResponse response);
+    }
+
     interface AttachmentRepo extends JpaRepository<SubsidyAttachment, Long> {
         List<SubsidyAttachment> findByClaimId(Long claimId);
         List<SubsidyAttachment> findByWorkOrderId(Long orderId);

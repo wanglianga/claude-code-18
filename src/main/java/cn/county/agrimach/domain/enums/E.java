@@ -110,4 +110,26 @@ public interface E {
         public final String label;
         AreaReviewStatus(String label) { this.label = label; }
     }
+
+    /** 雨后作业窗口重排：合作社选择转场可作业地块或原地等待 */
+    enum RerouteAction { DIVERT("先转去可作业地块"), WAIT("原地等待晾墒");
+        public final String label;
+        RerouteAction(String label) { this.label = label; }
+    }
+    enum ReroutePlanStatus { PROPOSED("待决策"), EXECUTED_DIVERT("已转场"), EXECUTED_WAIT("已等待"), CANCELLED("已取消");
+        public final String label;
+        ReroutePlanStatus(String label) { this.label = label; }
+    }
+
+    /** 受影响农户对重排通知的响应 */
+    enum FarmerResponse {
+        PENDING("待回复"), ACCEPT_DELAY("接受延期"),
+        NEED_MACHINE_CHANGE("要求换机具"), CANCEL_ORDER("取消作业");
+        public final String label;
+        FarmerResponse(String label) { this.label = label; }
+    }
+    enum NotificationStatus { UNSENT("待发送"), SENT("已发送"), RESPONDED("已响应");
+        public final String label;
+        NotificationStatus(String label) { this.label = label; }
+    }
 }

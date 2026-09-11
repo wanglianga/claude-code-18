@@ -56,6 +56,8 @@ public class SubsidyClaim {
     @Column(nullable = false) private Double faultSubsidy = 0.0;
     @Column(nullable = false) private Double totalSubsidy = 0.0;
     @Column(nullable = false) private Integer orderCount = 0;
+    /** 有效作业比例（%）= 有效作业时间 /（作业+空驶+等待天气+返工+故障），雨后重排影响该比例 */
+    @Column(nullable = false) private Double productiveRatioPct = 0.0;
 
     @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL, orphanRemoval = true)
     @com.fasterxml.jackson.annotation.JsonManagedReference

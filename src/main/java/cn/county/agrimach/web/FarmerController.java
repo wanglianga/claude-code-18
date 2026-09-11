@@ -16,6 +16,7 @@ public class FarmerController {
 
     private final OrderService orderService;
     private final cn.county.agrimach.service.AreaReviewService areaReviewService;
+    private final cn.county.agrimach.service.RerouteService rerouteService;
 
     @PostMapping("/orders")
     public WorkOrder submit(@RequestBody OrderService.SubmitReq req) {
@@ -67,5 +68,19 @@ public class FarmerController {
     @GetMapping("/orders/{id}/area-reviews")
     public Object listReviews(@PathVariable Long id) {
         return areaReviewService.listForOrder(id);
+    }
+
+    /** 我的雨后重排通知（转场/等待/延期） */
+    @GetMapping("/notifications")
+    public Object notifications() {
+        return rerouteService.myNotifications();
+    }
+
+    /** 对重排通知作出响应：接受延期/要求换机具/取消作业 */
+    @PostMapping("/notifications/{id}/respond")
+    public cn.county.agrimach.domain.entity.RerouteFarmerNotification respond(
+            @PathVariable Long id,
+            @RequestBody cn.county.agrimach.service.RerouteService.RespondReq req) {
+        return rerouteService.respond(id, req);
     }
 }
