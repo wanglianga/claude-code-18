@@ -1,0 +1,47 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: agrimach
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/agrimach}
+    username: ${SPRING_DATASOURCE_USERNAME:agrimach}
+    password: ${SPRING_DATASOURCE_PASSWORD:agrimach_pwd}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 10000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: true
+    properties:
+      hibernate:
+        jdbc.time_zone: Asia/Shanghai
+        format_sql: false
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  demo:
+    enabled: ${APP_DEMO_ENABLED:true}
+
+logging:
+  level:
+    cn.county.agrimach: INFO
+    org.hibernate.SQL: WARN

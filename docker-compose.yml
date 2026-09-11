@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agrimach}
+      POSTGRES_USER: ${POSTGRES_USER:-agrimach}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agrimach_pwd}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # 数据库端口不对宿主发布，仅 compose 内部网络访问
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agrimach} -d ${POSTGRES_DB:-agrimach}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-agrimach}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-agrimach}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-agrimach_pwd}
+      APP_DEMO_ENABLED: ${APP_DEMO_ENABLED:-true}
+    ports:
+      # 仅把应用服务端口发布到宿主，宿主端口由 CC_PUBLISH_PORT 指定，避免并行任务端口冲突
+      - "${CC_PUBLISH_PORT}:8080"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

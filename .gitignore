@@ -1,0 +1,31 @@
+# Local secrets and connection settings
+.env*
+!.env.example
+*secret*
+*token*
+*credential*
+*.pem
+*.key
+
+# Build, dependency, cache, and runtime output
+target/
+build/
+dist/
+coverage/
+.cache/
+*.log
+*.tmp
+*.db
+
+# Local QA/agent state
+.playwright-cli/
+*_traces/
+memory/
+memories/
+skill/
+skills/
+.claude/
+.codex/
+qa-artifacts/
+
+.DS_Store
