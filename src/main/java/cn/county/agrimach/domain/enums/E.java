@@ -100,4 +100,14 @@ public interface E {
         public final String label;
         RepairStatus(String label) { this.label = label; }
     }
+
+    /** 地块面积争议复核结果 */
+    enum AreaReviewStatus {
+        OPEN("待复核"),
+        CONFIRMED_OVERCHARGE("确认超算-应退减"),
+        CONFIRMED_UNDERREPORT("确认农户少报-记诚信风险"),
+        REJECTED("复核驳回-原核算无误");
+        public final String label;
+        AreaReviewStatus(String label) { this.label = label; }
+    }
 }

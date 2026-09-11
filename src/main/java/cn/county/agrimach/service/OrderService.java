@@ -55,7 +55,7 @@ public class OrderService {
                             LocalDateTime expectedStart,
                             @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
                             LocalDateTime expectedEnd,
-                            boolean strawRequested, String remark) {}
+                            boolean strawRequested, String remark, String boundaryConfirmRef) {}
 
     @Transactional
     public WorkOrder submit(SubmitReq r) {
@@ -64,6 +64,19 @@ public class OrderService {
                 || r.operationType() == null || r.mudLevel() == null
                 || r.expectedStart() == null || r.expectedEnd() == null) {
             throw bad("地块位置/面积/作业类型/泥泞程度/期望时间均为必填");
+        }
+        // 诚信风险农户：后续预约必须先取得针对该地块的村干部边界预确认
+        if (farmer.isIntegrityRiskFlag()) {
+            String ref = r.boundaryConfirmRef();
+            if (ref == null || ref.isBlank() || !ref.equals(farmer.getPendingBoundaryRef())) {
+                throw bad("该农户存在面积少报诚信风险记录，后续预约须先由村干部确认地块边界"
+                        + "（提交预确认凭据编号 boundaryConfirmRef）");
+            }
+            if (r.plotName() != null && farmer.getPendingBoundaryPlot() != null
+                    && !r.plotName().contains(farmer.getPendingBoundaryPlot())
+                    && !farmer.getPendingBoundaryPlot().contains(r.plotName())) {
+                throw bad("预约地块与已确认的风险农户地块不一致，请先重新取得村干部边界预确认");
+            }
         }
         WorkOrder o = new WorkOrder();
         o.setFarmer(farmer);
@@ -79,6 +92,11 @@ public class OrderService {
         o.setExpectedEnd(r.expectedEnd());
         o.setStrawRequested(r.strawRequested());
         o.setRemark(r.remark());
+        // 已通过边界预确认的预约，凭据落单
+        if (farmer.isIntegrityRiskFlag() && r.boundaryConfirmRef() != null) {
+            o.setBoundaryPreConfirmed(true);
+            o.setBoundaryConfirmRef(r.boundaryConfirmRef());
+        }
         o.setStatus(E.OrderStatus.SUBMITTED);
         return orderRepo.save(o);
     }
@@ -387,7 +405,8 @@ public class OrderService {
         return o;
     }
 
-    public record AcceptWorkReq(Double actualAreaMu, Integer rating, String comment) {}
+    public record AcceptWorkReq(Double actualAreaMu, Integer rating, String comment,
+                                String acceptancePhotoRefs) {}
 
     @Transactional
     public WorkOrder farmerAccept(Long orderId, AcceptWorkReq r) {
@@ -398,6 +417,7 @@ public class OrderService {
         if (r.actualAreaMu() != null) o.setActualAreaMu(r.actualAreaMu());
         o.setFarmerRating(r.rating());
         o.setFarmerAcceptComment(r.comment());
+        o.setFarmerAcceptancePhotoRefs(r.acceptancePhotoRefs());
         o.setFarmerAcceptedAt(LocalDateTime.now());
         o.setStatus(E.OrderStatus.SETTLED);
         Signoff sign = signoffRepo.findByWorkOrderIdAndType(orderId, E.SignoffType.FARMER_SIGN)
@@ -550,6 +570,22 @@ public class OrderService {
     public Long currentUserId() {
         return currentUser.get().getId();
     }
+
+    /** 当前农户档案（含面积诚信风险与边界预确认状态） */
+    @Transactional
+    public java.util.Map<String, Object> farmerProfile() {
+        UserAccount u = currentUser.get();
+        return java.util.Map.of(
+                "role", "FARMER",
+                "userId", u.getId(),
+                "name", u.getDisplayName(),
+                "integrityRiskFlag", u.isIntegrityRiskFlag(),
+                "integrityRiskCount", nzInt(u.getIntegrityRiskCount()),
+                "pendingBoundaryRef", u.getPendingBoundaryRef() == null ? "" : u.getPendingBoundaryRef(),
+                "pendingBoundaryPlot", u.getPendingBoundaryPlot() == null ? "" : u.getPendingBoundaryPlot());
+    }
+
+    private static int nzInt(Integer v) { return v == null ? 0 : v; }
 
     private static int nz(Integer v) { return v == null ? 0 : v; }
     private static double nz(Double v) { return v == null ? 0 : v; }

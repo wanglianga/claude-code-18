@@ -149,9 +149,24 @@ public class WorkOrder {
     private String farmerAcceptComment;
     /** 农户验收评分 1-5 */
     private Integer farmerRating;
+    /** 农户验收照片编号/引用，逗号分隔（面积争议复核证据之一） */
+    @Column(length = 500)
+    private String farmerAcceptancePhotoRefs;
 
     /** 发票号 */
     @Column(length = 40)
     private String invoiceNo;
     private LocalDateTime invoicedAt;
+
+    // ---------- 面积争议复核 ----------
+    /** 预约时是否已完成地块边界预确认（诚信风险农户强制） */
+    @Column(nullable = false)
+    private boolean boundaryPreConfirmed = false;
+    @Column(length = 60)
+    private String boundaryConfirmRef;
+    /** 收费面积已经争议复核调整（结算/补贴同步标记） */
+    @Column(nullable = false)
+    private boolean areaReviewAdjusted = false;
+    /** 经面积争议复核核定的收费面积（为空则以预约/现场实测为准） */
+    private Double reviewConfirmedAreaMu;
 }

@@ -33,6 +33,8 @@ public class ArchiveService {
     private final Repos.InvoiceRepo invoiceRepo;
     private final Repos.MaintenanceRepo maintenanceRepo;
     private final Repos.DisputeRepo disputeRepo;
+    private final Repos.AreaReviewRepo areaReviewRepo;
+    private final Repos.AttachmentRepo attachmentRepo;
     private final CurrentUser currentUser;
 
     public Map<String, Object> dossier(Long orderId) {
@@ -60,6 +62,8 @@ public class ArchiveService {
         d.put("maintenance", maintenanceRepo.findAll().stream()
                 .filter(m -> m.getWorkOrder() != null && m.getWorkOrder().getId().equals(orderId)).toList());
         d.put("disputes", disputeRepo.findByWorkOrderId(orderId));
+        d.put("areaReviews", areaReviewRepo.findByWorkOrderIdOrderByRaisedAtDesc(orderId));
+        d.put("subsidyAttachments", attachmentRepo.findByWorkOrderId(orderId));
         d.put("evidenceChain", evidenceChain(orderId));
         return d;
     }

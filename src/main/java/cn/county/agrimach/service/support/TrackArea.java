@@ -17,12 +17,25 @@ public final class TrackArea {
     public static double polygonMu(List<TrackPoint> points) {
         List<TrackPoint> work = points.stream().filter(TrackPoint::isWorking).toList();
         if (work.size() < 3) return 0.0;
+        double[][] coords = work.stream()
+                .map(p -> new double[]{p.getLongitude(), p.getLatitude()})
+                .toArray(double[][]::new);
+        return polygonMuFromCoords(coords);
+    }
+
+    /** 由 [经度, 纬度] 坐标序列计算闭合多边形面积（亩），供卫星地块边界核算 */
+    public static double polygonMuFromCoords(java.util.List<double[]> coords) {
+        return polygonMuFromCoords(coords.toArray(new double[0][]));
+    }
+
+    public static double polygonMuFromCoords(double[][] coords) {
+        if (coords == null || coords.length < 3) return 0.0;
         double areaSqm = 0;
-        for (int i = 0; i < work.size(); i++) {
-            TrackPoint a = work.get(i);
-            TrackPoint b = work.get((i + 1) % work.size());
-            double[] xyA = meters(a.getLongitude(), a.getLatitude());
-            double[] xyB = meters(b.getLongitude(), b.getLatitude());
+        for (int i = 0; i < coords.length; i++) {
+            double[] a = coords[i];
+            double[] b = coords[(i + 1) % coords.length];
+            double[] xyA = meters(a[0], a[1]);
+            double[] xyB = meters(b[0], b[1]);
             areaSqm += xyA[0] * xyB[1] - xyB[0] * xyA[1];
         }
         return Math.round(Math.abs(areaSqm) / 2.0 / MU_IN_SQM * 100) / 100.0;

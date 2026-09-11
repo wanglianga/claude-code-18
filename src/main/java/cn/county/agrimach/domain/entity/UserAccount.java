@@ -46,6 +46,18 @@ public class UserAccount {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    // ---------- 面积诚信风险（复核确认少报后置位） ----------
+    /** 诚信风险标记：后续预约须先取得村干部地块边界预确认 */
+    @Column(nullable = false)
+    private boolean integrityRiskFlag = false;
+    @Column(nullable = false)
+    private Integer integrityRiskCount = 0;
+    /** 村干部最近一次地块边界预确认凭据（预约时校验） */
+    @Column(length = 60)
+    private String pendingBoundaryRef;
+    @Column(length = 120)
+    private String pendingBoundaryPlot;
+
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

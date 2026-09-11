@@ -116,6 +116,28 @@ curl -u auditor:123456 -X POST "$BASE/api/auditor/claims/1/review" -H 'Content-T
 
 `空驶 EMPTY_HAUL`（元/km，含跨村赴地与异常折返/换机）、`有效作业 PRODUCTIVE`（元/亩）、`等待天气 WEATHER_WAIT`（元/小时）、`返工 REWORK`（元/亩，非农户原因）、`机具故障 MACHINE_FAULT`（元/小时，系数 0.5 下浮）。规则在 `subvention_rule` 表按“作业类型 × 分段类型”配置，每次核算结果按费用版本写入 `work_segment`。
 
+## 地块面积争议复核（收费面积争议闭环）
+
+农户认为收费面积过高时可发起复核，服务自动归集**五类证据**：预约面积、驾驶轨迹核算面积、卫星地块边界（提交边界坐标自动核算面积）、驾驶员现场备注、农户验收照片。由**村干部裁决**：
+
+| 裁决结果 | 处理 |
+|---|---|
+| 确认超算 `CONFIRMED_OVERCHARGE` | 核定面积成为最终收费面积，费用与油补按新版本**同步退减**；已开发票生成负数调整记录；补贴草稿自动按新面积重算；已在审核中的申报挂复核附件并被系统强制驳回重报 |
+| 确认农户少报 `CONFIRMED_UNDERREPORT` | 补计费用与油补；农户记录**诚信风险**（次数累计），后续预约必须先由村干部做**地块边界预确认**，提交预确认凭据编号 `boundaryConfirmRef`，否则预约被拦截 |
+| 复核驳回 `REJECTED` | 原核算不变，复核过程仍入档 |
+
+同步机制保证“**不会出现农户费用已改、补贴面积仍按旧数据提交**”：复核裁决实时关联该社全部相关申报单——草稿/驳回态自动重算明细与汇总；已提交态标记 `needsAdjustment`，审核部门直接通过会被系统拒绝（400），须驳回→合作社重报→复审；已核拨态在附件中留存补贴调整单线索。全部复核证据快照（含裁决）作为**补贴审核附件**随申报单调阅，统一作业档案 `/api/orders/{id}/dossier` 中含 `areaReviews` 与 `subsidyAttachments`。
+
+相关接口：
+
+| 角色 | 方法与路径 |
+|---|---|
+| 农户 | `POST /api/farmer/orders/{id}/area-reviews`、`GET .../area-reviews`、`GET /api/farmer/me`（查诚信状态） |
+| 驾驶员 | `POST /api/driver/area-reviews/{reviewId}/note`（仅本单承接驾驶员） |
+| 合作社/村干部 | `POST /api/coop|village/area-reviews/{reviewId}/satellite`（卫星边界证据） |
+| 村干部 | `POST /api/village/area-reviews/{reviewId}/decide`（裁决）、`POST /api/village/farmers/{farmerId}/boundary-pre-confirm`（风险农户边界预确认） |
+| 审核部门 | `GET /api/auditor/claims/{id}`（明细+复核附件） |
+
 ## 合作社调度视图（不是单个订单）
 
 - `GET /api/coop/dispatch/pool`：调度池。**归属隔离规则**：未分派（SUBMITTED）预约单为全县共享池，所有合作社可见并竞价派机；订单派给某社后（DISPATCHED）仅该社在池中可见，其他合作社（如 `coop2`）看不到合作社 1 的订单，且对已派单再次生成建议/派机会被拒绝（4xx）。非合作社角色访问返回 403。
@@ -133,23 +155,25 @@ curl -u auditor:123456 -X POST "$BASE/api/auditor/claims/1/review" -H 'Content-T
 
 | 角色 | 方法与路径 |
 |---|---|
-| 农户 | `POST /api/farmer/orders`、`GET /api/farmer/orders`、`POST /api/farmer/orders/{id}/exceptions`、`POST /api/farmer/orders/{id}/accept-work` |
-| 驾驶员 | `POST .../accept`、`/arrive`、`/start`、`/track`、`/exceptions`、`/finish`；`GET /api/driver/orders` |
-| 合作社 | `GET /api/coop/dispatch/pool`、`POST /api/coop/orders/{id}/suggestions`、`/dispatch`、`POST /api/coop/exceptions/{id}/resolve`、`/routes`、`/utilization`、`/fatigue`、`/maintenance`、`/orders/{id}/invoice`、`/orders/{id}/opinion`、`/subsidy/draft`、`/subsidy/{id}/submit` |
-| 村干部 | `POST /api/village/orders/{id}/confirm`、`POST /api/village/disputes/{id}/resolve` |
-| 审核部门 | `GET /api/auditor/claims`、`POST /api/auditor/claims/{id}/review` |
-| 共享 | `GET /api/orders/{id}/dossier`、`GET /api/orders/{id}/suggestions`、`POST /api/orders/{id}/disputes` |
+| 农户 | `POST /api/farmer/orders`（风险农户须带 `boundaryConfirmRef`）、`GET /api/farmer/orders`、`POST /api/farmer/orders/{id}/exceptions`、`POST /api/farmer/orders/{id}/area-reviews`、`POST /api/farmer/orders/{id}/accept-work`（可带 `acceptancePhotoRefs`） |
+| 驾驶员 | `POST .../accept`、`/arrive`、`/start`、`/track`、`/exceptions`、`/finish`、`POST /api/driver/area-reviews/{id}/note`；`GET /api/driver/orders` |
+| 合作社 | `GET /api/coop/dispatch/pool`、`POST /api/coop/orders/{id}/suggestions`、`/dispatch`、`POST /api/coop/exceptions/{id}/resolve`、`/routes`、`/utilization`、`/fatigue`、`/maintenance`、`/orders/{id}/invoice`、`/orders/{id}/opinion`、`/area-reviews/{id}/satellite`、`/subsidy/draft`、`/subsidy/{id}/submit` |
+| 村干部 | `POST /api/village/orders/{id}/confirm`、`POST /api/village/disputes/{id}/resolve`、`POST /api/village/area-reviews/{id}/satellite|decide`、`POST /api/village/farmers/{id}/boundary-pre-confirm` |
+| 审核部门 | `GET /api/auditor/claims`、`GET /api/auditor/claims/{id}`（含复核附件）、`POST /api/auditor/claims/{id}/review` |
+| 共享 | `GET /api/orders/{id}/dossier`（含 `areaReviews`/`subsidyAttachments`）、`GET /api/orders/{id}/suggestions`、`POST /api/orders/{id}/disputes` |
 | 公共 | `GET /`、`GET /api/meta/enums`、`GET /actuator/health` |
 
 ## 验证方式（宿主 docker compose up）
 
 本工程的验收标准是“compose up 健康 + 关键业务流可通过接口走通”，不依赖在本机安装 JDK/Maven：构建所需工具链全部由多阶段 Dockerfile（`maven:3.9-eclipse-temurin-21` → `eclipse-temurin:21-jre`）提供。启动后请按上文“端到端业务流”依次调用，或直接访问 `GET /` 确认服务状态。
 
-接口级自动化验收（仅依赖 Python 标准库，服务 `compose up` 后运行）：
+接口级自动化验收（仅依赖 Python 标准库，服务 `compose up` 后运行，每个套件建议用全新数据库执行）：
 
 ```bash
 # 合作社归属隔离：非合作社角色 403；coop2 调度池不含合作社1已派订单
 BASE=http://host.docker.internal:3018 python3 tests/api_pool_isolation_test.py
+# 面积争议复核：超算退减同步（发票/草稿/审核附件）、少报诚信风险与预确认拦截、已申报驳回重报
+BASE=http://host.docker.internal:3018 python3 tests/api_area_review_test.py
 ```
 
 ## 目录结构

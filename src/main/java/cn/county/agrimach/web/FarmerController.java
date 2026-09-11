@@ -15,6 +15,7 @@ import java.util.Map;
 public class FarmerController {
 
     private final OrderService orderService;
+    private final cn.county.agrimach.service.AreaReviewService areaReviewService;
 
     @PostMapping("/orders")
     public WorkOrder submit(@RequestBody OrderService.SubmitReq req) {
@@ -49,8 +50,22 @@ public class FarmerController {
         return orderService.reportException(id, req);
     }
 
+    /** 发起地块面积争议复核（收费面积过高时），归集轨迹/卫星边界/验收照片等证据 */
+    @PostMapping("/orders/{id}/area-reviews")
+    public cn.county.agrimach.domain.entity.AreaReview raiseReview(
+            @PathVariable Long id,
+            @RequestBody cn.county.agrimach.service.AreaReviewService.RaiseReq req) {
+        return areaReviewService.raise(id, req);
+    }
+
     @GetMapping("/me")
     public Map<String, Object> me() {
-        return Map.of("role", "FARMER", "userId", orderService.currentUserId());
+        return orderService.farmerProfile();
+    }
+
+    /** 查看本单面积争议复核进展 */
+    @GetMapping("/orders/{id}/area-reviews")
+    public Object listReviews(@PathVariable Long id) {
+        return areaReviewService.listForOrder(id);
     }
 }

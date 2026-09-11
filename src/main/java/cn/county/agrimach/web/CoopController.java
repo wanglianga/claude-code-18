@@ -27,6 +27,7 @@ public class CoopController {
     private final DocumentService documentService;
     private final SubsidyService subsidyService;
     private final cn.county.agrimach.service.CurrentUser currentUser;
+    private final cn.county.agrimach.service.AreaReviewService areaReviewService;
 
     /** 待派机池 */
     @GetMapping("/dispatch/pool")
@@ -100,6 +101,18 @@ public class CoopController {
     @PostMapping("/subsidy/{claimId}/submit")
     public Object submitClaim(@PathVariable Long claimId) {
         return subsidyService.submit(claimId);
+    }
+
+    /** 合作社调取/录入卫星地块边界证据，供面积争议复核 */
+    @PostMapping("/area-reviews/{reviewId}/satellite")
+    public Object reviewSatellite(@PathVariable Long reviewId,
+                                  @RequestBody cn.county.agrimach.service.AreaReviewService.SatelliteReq req) {
+        return areaReviewService.satelliteBoundary(reviewId, req);
+    }
+
+    @GetMapping("/orders/{orderId}/area-reviews")
+    public Object listReviews(@PathVariable Long orderId) {
+        return areaReviewService.listForOrder(orderId);
     }
 
     private Long currentCoopId() {

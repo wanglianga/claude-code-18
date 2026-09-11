@@ -35,7 +35,9 @@ public class PlanBuilder {
     public BuiltPlan build(WorkOrder o, Machine machine, List<WorkException> resolvedExceptions,
                            Double roadKmOverride) {
         List<CalcPlan.Seg> segs = new ArrayList<>();
-        double area = nz(o.getBookedAreaMu());
+        // 面积基准：现场实测异常 > 复核核定面积 > 农户预约面积
+        double area = o.getReviewConfirmedAreaMu() != null
+                ? o.getReviewConfirmedAreaMu() : nz(o.getBookedAreaMu());
 
         // ---------- 空驶：合作社驻地 → 地块 ----------
         double baseDistance = roadKmOverride != null ? roadKmOverride : nz(o.getRoadDistanceKm());
@@ -55,10 +57,15 @@ public class PlanBuilder {
         for (WorkException ex : resolvedExceptions) {
             switch (ex.getType()) {
                 case UNCLEAR_BOUNDARY -> {
-                    if (ex.getMeasuredAreaMu() != null) area = ex.getMeasuredAreaMu();
+                    // 已由面积争议复核核定的面积为最终收费面积，现场实测不再覆盖
+                    if (o.getReviewConfirmedAreaMu() == null && ex.getMeasuredAreaMu() != null) {
+                        area = ex.getMeasuredAreaMu();
+                    }
                 }
                 case AREA_EXCEEDED -> {
-                    if (ex.getMeasuredAreaMu() != null) area = Math.max(area, ex.getMeasuredAreaMu());
+                    if (o.getReviewConfirmedAreaMu() == null && ex.getMeasuredAreaMu() != null) {
+                        area = Math.max(area, ex.getMeasuredAreaMu());
+                    }
                 }
                 case RAIN_BLOCKED -> {
                     weatherWait += nzi(ex.getDowntimeMinutes());

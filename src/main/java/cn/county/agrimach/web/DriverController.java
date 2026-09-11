@@ -16,6 +16,7 @@ import java.util.Map;
 public class DriverController {
 
     private final OrderService orderService;
+    private final cn.county.agrimach.service.AreaReviewService areaReviewService;
 
     @GetMapping("/orders")
     public List<WorkOrder> myOrders() {
@@ -57,5 +58,13 @@ public class DriverController {
     @PostMapping("/orders/{id}/finish")
     public WorkOrder finish(@PathVariable Long id, @RequestBody(required = false) OrderService.FinishReq req) {
         return orderService.finishWork(id, req != null ? req : new OrderService.FinishReq(null));
+    }
+
+    /** 对面积争议复核补充驾驶员现场备注（证据之一） */
+    @PostMapping("/area-reviews/{reviewId}/note")
+    public cn.county.agrimach.domain.entity.AreaReview reviewNote(
+            @PathVariable Long reviewId,
+            @RequestBody cn.county.agrimach.service.AreaReviewService.DriverNoteReq req) {
+        return areaReviewService.driverNote(reviewId, req);
     }
 }

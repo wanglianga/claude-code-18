@@ -44,4 +44,14 @@ public class Invoice {
 
     @Column(length = 200)
     private String title;
+
+    // ---------- 面积争议复核后的发票调整 ----------
+    @Column(nullable = false)
+    private boolean adjusted = false;
+    /** 调整金额（负数为冲减退费） */
+    private Double adjustmentAmount;
+    private Double totalAfterAdjustment;
+    private LocalDateTime adjustedAt;
+    @Column(length = 300)
+    private String adjustmentNote;
 }

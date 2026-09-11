@@ -108,6 +108,16 @@ public interface Repos {
         boolean existsByClaimNo(String claimNo);
     }
 
+    interface AreaReviewRepo extends JpaRepository<AreaReview, Long> {
+        List<AreaReview> findByWorkOrderIdOrderByRaisedAtDesc(Long orderId);
+        boolean existsByWorkOrderIdAndStatus(Long orderId, E.AreaReviewStatus status);
+    }
+
+    interface AttachmentRepo extends JpaRepository<SubsidyAttachment, Long> {
+        List<SubsidyAttachment> findByClaimId(Long claimId);
+        List<SubsidyAttachment> findByWorkOrderId(Long orderId);
+    }
+
     interface WeatherRepo extends JpaRepository<WeatherRecord, Long> {
         Optional<WeatherRecord> findByVillageAndDate(String village, String date);
         List<WeatherRecord> findByVillageOrderByDate(String village);

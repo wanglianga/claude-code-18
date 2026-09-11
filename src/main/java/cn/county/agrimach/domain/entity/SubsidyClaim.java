@@ -60,4 +60,15 @@ public class SubsidyClaim {
     @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL, orphanRemoval = true)
     @com.fasterxml.jackson.annotation.JsonManagedReference
     private List<SubsidyClaimItem> items = new ArrayList<>();
+
+    /** 面积复核同步附件（复核证据进入补贴审核） */
+    @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL, orphanRemoval = true)
+    @com.fasterxml.jackson.annotation.JsonManagedReference
+    private List<SubsidyAttachment> attachments = new ArrayList<>();
+
+    /** 存在已裁决复核但本单尚未按新面积重报（审核部门应驳回重报） */
+    @Column(nullable = false)
+    private boolean needsAdjustment = false;
+    @Column(length = 500)
+    private String adjustmentNote;
 }

@@ -90,6 +90,53 @@ public class SubsidyService {
         return claimRepo.save(claim);
     }
 
+    /**
+     * 面积争议复核裁决后，把申报草稿中该作业单的全部明细按最新费用版本重建并重算汇总，
+     * 保证补贴面积与农户费用同步、不按旧数据提交。
+     */
+    @Transactional
+    public void refreshOrderInClaim(SubsidyClaim claim, Long orderId) {
+        WorkOrder o = orderRepo.findById(orderId).orElse(null);
+        if (o == null) return;
+        claim.getItems().removeIf(i -> i.getWorkOrder().getId().equals(orderId));
+
+        int latestVersion = o.getCalcVersion();
+        Map<E.SegmentType, double[]> agg = new EnumMap<>(E.SegmentType.class);
+        for (WorkSegment s : segmentRepo.findByWorkOrderIdAndCalcVersion(orderId, latestVersion)) {
+            double[] a = agg.computeIfAbsent(s.getSegmentType(), k -> new double[4]);
+            a[0] += s.getAreaMu();
+            a[1] += s.getDistanceKm();
+            a[2] += s.getDurationMinutes();
+            a[3] += s.getSubsidyAmount();
+        }
+        for (Map.Entry<E.SegmentType, double[]> en : agg.entrySet()) {
+            E.SegmentType type = en.getKey();
+            double[] a = en.getValue();
+            if (a[3] <= 0) continue;
+            SubventionRule rule = ruleRepo.findByOperationTypeAndSegmentType(o.getOperationType(), type).orElse(null);
+            String basis = rule != null ? rule.getBasis() : "HOUR";
+            double qty = switch (basis) {
+                case "MU" -> r2(a[0]);
+                case "KM" -> r2(a[1]);
+                default -> r2(a[2] / 60.0);
+            };
+            SubsidyClaimItem item = new SubsidyClaimItem();
+            item.setClaim(claim);
+            item.setWorkOrder(o);
+            item.setSegmentType(type);
+            item.setQuantity(qty);
+            item.setBasis(basis);
+            item.setRate(qty > 0 ? r2(a[3] / qty) : 0);
+            item.setAmount(r2(a[3]));
+            item.setCalcVersion(latestVersion);
+            claim.getItems().add(item);
+        }
+        summarize(claim);
+        claim.setOrderCount((int) claim.getItems().stream()
+                .map(i -> i.getWorkOrder().getId()).distinct().count());
+        claimRepo.save(claim);
+    }
+
     private void summarize(SubsidyClaim claim) {
         double empty = 0, prod = 0, wait = 0, rework = 0, fault = 0;
         for (SubsidyClaimItem i : claim.getItems()) {
@@ -127,6 +174,11 @@ public class SubsidyService {
         SubsidyClaim c = must(claimId);
         if (c.getStatus() != E.SubsidyStatus.SUBMITTED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "仅已申报材料可审核");
+        }
+        if (r.approved() && c.isNeedsAdjustment()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "该申报存在面积争议复核后未按新数据重报的作业单（" + c.getAdjustmentNote()
+                            + "），请先驳回，待合作社重报后再审");
         }
         c.setStatus(r.approved() ? E.SubsidyStatus.APPROVED : E.SubsidyStatus.REJECTED);
         c.setReviewedBy(currentUser.get());

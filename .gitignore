@@ -28,6 +28,10 @@ __pycache__/
 .playwright-cli/
 *_traces/
 *_traces_*/
+traces/
+trace/
+Claude/
+claude/
 *.jsonl
 session*
 memory/
@@ -38,5 +42,7 @@ skills/
 .claude/
 .codex/
 qa-artifacts/
+QA产物/
+qa-report*
 
 .DS_Store
